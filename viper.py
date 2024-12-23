@@ -38,7 +38,19 @@ def load_proxies(proxy_file):
     global PROXY_CYCLE
     with open(proxy_file, "r") as f:
         PROXY_LIST.extend([line.strip() for line in f if line.strip()])
-    PROXY_CYCLE = cycle(PROXY_LIST)
+    if PROXY_LIST:  # Only create cycle if proxies are available
+        PROXY_CYCLE = cycle(PROXY_LIST)
+    else:
+        while True:
+            choice = input("[WARNING] No proxies found in the file. Do you want to proceed without proxies? (Y/N): ").strip().lower()
+            if choice == 'y':
+                print("[INFO] Proceeding without proxies...")
+                break
+            elif choice == 'n':
+                print("[INFO] Exiting as per user request.")
+                exit(0)
+            else:
+                print("[ERROR] Invalid choice. Please enter Y or N.")
 
 # Coroutine function for sending HTTP requests asynchronously
 async def send_request(url, headers, proxy=None):
@@ -100,7 +112,14 @@ def main():
 
     threads = []
     for i in range(args.threads):
-        proxy = next(PROXY_CYCLE) if PROXY_CYCLE else None
+        # Fallback to no proxy if PROXY_CYCLE is empty or not set
+        proxy = None
+        if PROXY_CYCLE:
+            try:
+                proxy = next(PROXY_CYCLE)
+            except StopIteration:
+                pass  # No proxies left, continue without proxy
+
         t = threading.Thread(
             target=thread_function,
             args=(args.url, args.coroutines, args.requests, proxy),
