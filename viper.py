@@ -5,6 +5,7 @@ import random
 import requests
 from itertools import cycle
 import time
+import logging
 
 # Global configuration
 USER_AGENTS = [
@@ -26,25 +27,11 @@ REFERERS = [
     "http://www.baidu.com/s?wd=",
     "http://www.yandex.ru/yandsearch?text=",
     "http://search.yahoo.com/search?p=",
-    "http://www.naver.com/search?q=",
-    "http://www.daum.net/search?q=",
-    "http://www.ecosia.org/search?q=",
-    "http://www.qwant.com/?q=",
-    "http://www.seznam.cz/hledani?q=",
-    "http://www.rambler.ru/search?q=",
 ]
 
 # Placeholder for proxies
 PROXY_LIST = []
 PROXY_CYCLE = None
-
-# Logging lock to avoid thread collisions
-log_lock = threading.Lock()
-
-# Function to log messages
-def log(message):
-    with log_lock:
-        print(message)
 
 # Function to load proxies from a file
 def load_proxies(proxy_file):
@@ -66,10 +53,10 @@ async def send_request(url, headers, proxy=None):
         response = requests.get(url, headers=headers, proxies=proxies, timeout=5)
 
         # Log the result
-        log(f"[INFO] Sent request to {url} - Status Code: {response.status_code}")
+        logging.info(f"Sent request to {url} - Status Code: {response.status_code}")
 
     except requests.RequestException as e:
-        log(f"[ERROR] Request failed: {e}")
+        logging.error(f"Request failed: {e}")
 
 # Coroutine loop for handling multiple asynchronous requests
 async def coroutine_loop(url, headers, num_requests, proxy=None):
@@ -89,9 +76,7 @@ def thread_function(url, num_coroutines, requests_per_coroutine, proxy=None):
 # Monitor thread for dynamic adjustment (placeholder functionality)
 def monitor_thread():
     while True:
-        log("[MONITOR] Monitoring server response...")
-        # Simulate monitoring logic here (e.g., checking server responses, errors)
-        # Adjust parameters dynamically based on observations
+        logging.info("[MONITOR] Monitoring server response...")
         time.sleep(10)
 
 # Main execution flow
@@ -102,8 +87,12 @@ def main():
     parser.add_argument("--coroutines", type=int, default=50, help="Number of coroutines per thread")
     parser.add_argument("--requests", type=int, default=10, help="Number of requests per coroutine")
     parser.add_argument("--proxy-file", help="File containing proxy addresses")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging.")
     args = parser.parse_args()
 
+    # Configure logging
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(level=log_level, format="%(asctime)s [%(levelname)s] %(message)s")
 
     # Load proxies if provided
     if args.proxy_file:
