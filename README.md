@@ -1,111 +1,113 @@
-# viper.py - Hybrid HTTP DoS Tool
+# Viper - HTTP Load Testing Tool
 
-## **What is viper.py?**
-
-`viper.py` is a versatile and powerful HTTP Denial of Service (DoS) tool designed for stress testing web servers. It combines **multithreading** and **coroutines** to deliver high-performance attacks, targeting **Layer 7 (Application Layer)** vulnerabilities. It supports features like randomized headers, proxy integration, and dynamic request generation to mimic legitimate traffic, making it harder to detect.
+A hybrid threading + async HTTP load testing tool built for authorized penetration testing engagements. Combines multithreading with `aiohttp` coroutines for high-concurrency request generation, with a real-time terminal metrics dashboard.
 
 ---
 
-## **How Does viper.py Work?**
+## How It Works
 
-1. **Multiple Threads and Coroutines:**
-   - Threads manage coroutine loops for sending a high volume of asynchronous HTTP requests.
-2. **Randomized Request Parameters:**   
-   - User-Agent, Referer, and query strings are randomized to simulate legitimate traffic.
-3. **Proxy Support:**
-   - Allows testing with multiple SOCKS5 proxies to mask source IPs.
-4. **Dynamic Adjustments:**
-   - Monitors server responses and adjusts request rates or concurrency dynamically.
-5. **Exhausts Server Resources:**
-   - Overwhelms the web server by consuming CPU, memory, and thread pools, leading to denial of service.
+1. **Threads + Async Coroutines:** Each thread runs its own asyncio event loop with N concurrent coroutines, all sharing an `aiohttp.ClientSession` for connection pooling.
+2. **Randomized Headers:** User-Agent, Referer, and custom headers are randomized per request.
+3. **Proxy Support:** Routes traffic through SOCKS5 or HTTP proxies via `aiohttp-socks`. Proxies are distributed round-robin across threads.
+4. **Live Dashboard:** Real-time terminal display showing req/sec, success/fail rates, status code distribution with ASCII bar charts, and data sent.
 
 ---
 
-## **How to Install and Run viper.py**
+## Installation
 
-### **Installation**
-
-Clone the repository from GitHub:
 ```bash
-git clone https://github.com/your-repo/viper.git
+git clone https://github.com/vigneshka/viper.git
 cd viper
-```
-
-Ensure you have Python 3 installed. Install the required dependencies using:
-```bash
 pip3 install -r requirements.txt
 ```
 
----
+### Dependencies
 
-### **Running viper.py**
-
-To run a basic attack:
-```bash
-python3 viper.py --url example.com --threads 10 --coroutines 50 --requests 20
-```
+- `aiohttp` — async HTTP client
+- `aiohttp-socks` — SOCKS5/HTTP proxy support for aiohttp
 
 ---
 
-### **SOCKS5 Proxy Support**
+## Usage
 
-If you plan on using SOCKS5 proxies, ensure you have the `PySocks` library installed:
 ```bash
-pip3 install PySocks
+python3 viper.py --url <target_url> [options]
 ```
 
-You can then use the `--proxy-file` option to specify a file containing proxy addresses:
+### Options
+
+| Argument | Description | Default |
+|---|---|---|
+| `--url` | Target URL (required) | — |
+| `--threads` | Number of threads | 20 |
+| `--coroutines` | Coroutines per thread | 100 |
+| `--requests` | Requests per coroutine | 500 |
+| `--proxy-file` | File with proxy addresses (one per line) | None |
+| `--infinite` | Run indefinitely until Ctrl+C | Off |
+| `--verbose` | Enable per-request debug logging | Off |
+
+### Examples
+
 ```bash
-python3 viper.py --url example.com --threads 10 --coroutines 50 --requests 20 --proxy-file proxies.txt
-```
+# Basic run with defaults (20 threads × 100 coroutines × 500 requests = 1M requests)
+python3 viper.py --url http://target.com
 
-The proxy file should contain one proxy address per line, in the format:
-```
-127.0.0.1:8080
-192.168.1.100:1080
-```
+# Custom concurrency
+python3 viper.py --url http://target.com --threads 10 --coroutines 50 --requests 100
 
----
+# With SOCKS5 proxies
+python3 viper.py --url http://target.com --proxy-file proxies.txt
 
-## **Configuration Options**
-
-`viper.py` provides various command-line arguments to customize the attack:
-
-| Argument           | Description                                   | Default            |
-|--------------------|-----------------------------------------------|--------------------|
-| `--url`           | Target URL for the attack                    | Required           |
-| `--threads`       | Number of threads to spawn                   | 10                 |
-| `--coroutines`    | Number of coroutines per thread              | 50                 |
-| `--requests`      | Number of requests per coroutine             | 20                 |
-| `--proxy-file`    | File containing proxy addresses              | None               |
-| `--useragents`    | File with custom User-Agent strings          | Randomized built-in|
-| `--sleeptime`     | Time to sleep between requests (seconds)     | 0.1-0.5 (random)   |
-| `--verbose`       | Increases logging output                     | Off                |
-
----
-
-## **Example Commands**
-
-### **Basic Usage**
-Run the tool against a target URL:
-```bash
-python3 viper.py --url example.com --threads 15 --coroutines 100 --requests 25
-```
-
-### **Using Proxies**
-Run with SOCKS5 proxies from a file:
-```bash
-python3 viper.py --url example.com --threads 10 --coroutines 50 --requests 20 --proxy-file proxies.txt
-```
-
-### **Verbose Mode**
-Enable detailed logging:
-```bash
-python3 viper.py --url example.com --threads 10 --verbose
+# Infinite mode with verbose logging
+python3 viper.py --url http://target.com --infinite --verbose
 ```
 
 ---
 
-## **Disclaimer**
+## Proxy File Format
 
-⚠️ **Caution:** This tool is intended for testing **your own servers** or those you have explicit permission to test. Unauthorized use against third-party systems is illegal and unethical. Always ensure you have proper authorization before conducting any stress tests.
+One proxy per line with scheme prefix:
+
+```
+socks5://127.0.0.1:1080
+socks5://192.168.1.100:1080
+http://10.0.0.1:8080
+https://proxy.example.com:3128
+```
+
+If the proxy file exists but is empty, the tool will prompt whether to continue without proxies.
+
+---
+
+## Live Dashboard
+
+During execution, Viper displays a live-updating terminal dashboard:
+
+```
+ ══════════════════════════════════════════════════
+  VIPER v2.0  Target: http://target.com
+ ══════════════════════════════════════════════════
+  Elapsed     :  00:01:23
+  Threads     :  20 active
+  Req/sec     :  1,247.3
+ ──────────────────────────────────────────────────
+  Total Sent   :  103,284
+  Success      :  98,412   (95.3%)
+  Failed       :  4,872    (4.7%)
+  Data Sent    :  847.2 MB
+ ──────────────────────────────────────────────────
+  Status Codes:
+    2xx ████████████████████░░░░  82.1%  (84,802)
+    4xx ██░░░░░░░░░░░░░░░░░░░░░░  10.0%  (10,328)
+    5xx █░░░░░░░░░░░░░░░░░░░░░░░   4.7%  (4,872)
+ ══════════════════════════════════════════════════
+  Ctrl+C to stop
+```
+
+A final summary with totals is printed on exit.
+
+---
+
+## Disclaimer
+
+This tool is strictly for **authorized penetration testing and load testing engagements** with proper client agreements. Any unauthorized usage is prohibited and may violate applicable laws. Always ensure you have written authorization before running this tool against any target.
